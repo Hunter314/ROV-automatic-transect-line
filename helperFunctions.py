@@ -180,13 +180,18 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     # Slope is (-b / a)
     # slope is (-np.tan(theta))
     # initial value is (cos(theta)rho)
-    slope = -(a / b)
+    if (b != 0):
+        slope = -(a / b)
+    else:
+        slope = 10000
     if (debug == True):
         print(f'Initial value ({x0}, {y0}), slope {slope}')
     return ((x0, y0), slope)
 
 
 def pointsFromPointSlope(point, slope, highVal=1000):
+
+
     return ((int(point[0] - highVal), int(point[1] - highVal * slope)), (int(point[0] + highVal), int(point[1] + highVal * slope)))
 
 
