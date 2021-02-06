@@ -86,35 +86,73 @@ def applyHoughTransform(img, edgy_img = None, threshold = 100, debug = False):
                     pointSlopeFromRhoTheta(rho, theta, debug=True)
                 cv2.line(img, start, end, (0, 0, 255), 2)
 
-                # add line to list of slope intercept lines
-                si_lines.append(slopeIntercept(rho, theta))
+            bigLines = bigLinesFromAllLines(lines)
+            print(f'bigLines: {bigLines}')
+            print("TEST")
+            for bigLine in bigLines:
+                points = pointsFromPointSlope(bigLine[0], bigLine[1])
+                cv2.line(img, points[0], points[1], (0, 255, 0), 2)
 
-
-            big_lines = []
-            intercepts = []
-            slopes = []
-            thetas = []
-            for line in si_lines:
-                slopes.append(line[1])
-                intercepts.append(line[0][0])
-            for lineTheta in lines:
-                thetas.append(lineTheta[0][1])
-            plt.plot(intercepts, thetas, 'bo')
-            intercepts = np.array(intercepts)
-            a = intercepts.reshape(-1, 1)
-            kde = KernelDensity(kernel='gaussian', bandwidth=3).fit(a)
-            s = np.linspace(0, 400)
-            e = kde.score_samples(s.reshape(-1, 1))
-
-            plt.plot(s, e)
-            plt.show()
 
             # Now, try to find all major lines in the image
-            cv2.putText(img, text=f"Detected {len(lines)} lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
+            cv2.putText(img, text=f"Detected {len(bigLines)} lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
         else:
             cv2.putText(img, text=f"Detected 0 lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
 
     return lines
+
+
+def bigLinesFromAllLines(lines):
+    si_lines = []
+    if lines is not None:
+        for arr in lines:
+            rho = arr[0][0]
+            theta = arr[0][1]
+            # add line to list of slope intercept lines
+            si_lines.append(slopeIntercept(rho, theta))
+    else:
+        # No big lines if there are no lines!
+        return None
+    big_lines = []
+    line_clusters = []
+    intercepts = []
+    slopes = []
+    thetas = []
+    for line in si_lines:
+
+        slopes.append(line[1])
+        intercepts.append(line[0][0])
+    for lineTheta in lines:
+        thetas.append(lineTheta[0][1])
+    #plt.plot(intercepts, thetas, 'bo')
+    intercepts = np.array(intercepts)
+    a = intercepts.reshape(-1, 1)
+    kde = KernelDensity(kernel='gaussian', bandwidth=3).fit(a)
+    # change 600 to image width
+    s = np.linspace(0, 600)
+    e = kde.score_samples(s.reshape(-1, 1))
+
+    #plt.plot(s, e)
+    #plt.show()
+    mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
+    print(f"Maxima: {s[ma]}")
+    # Now select which lines are close enough to the maxima
+    print(f"There are {len(s[ma])} lines")
+    for big_line in s[ma]:
+        cluster_slopes = []
+        cluster_intercepts = []
+        for small_line in si_lines:
+            if abs(small_line[0][0] - big_line) < 20:
+                #add intercept
+                cluster_intercepts.append(small_line[0][0])
+                cluster_slopes.append(small_line[1])
+        print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
+        big_slope = np.average(cluster_slopes)
+        big_intercept = np.average(cluster_intercepts)
+        big_lines.append(((big_intercept, 0), big_slope))
+
+    return big_lines
+
 
 def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
     a = np.cos(theta)
@@ -133,6 +171,7 @@ def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
     return ((x1, y1), (x2, y2))
 
 
+
 def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     a = np.cos(theta)
     b = np.sin(theta)
@@ -145,6 +184,10 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     if (debug == True):
         print(f'Initial value ({x0}, {y0}), slope {slope}')
     return ((x0, y0), slope)
+
+
+def pointsFromPointSlope(point, slope, highVal=1000):
+    return ((int(point[0] - highVal), int(point[1] - highVal * slope)), (int(point[0] + highVal), int(point[1] + highVal * slope)))
 
 
 def slopeIntercept(rho, theta, debug=False):
@@ -167,15 +210,6 @@ def intersectionWithHorizontal(point, slope, horizontal_y=0):
     # dx = dy / slope
     intersection = x0 + k / slope
     return intersection
-
-
-
-
-
-def getAllSides(img, edgy_img=None):
-    # Will return every rail found in the image of the transect
-    applyHoughTransform()
-
 
 
 def applyPHough(img, edgy_img = None, minLineLength = 100, maxLineGap = 50, debug = False):
