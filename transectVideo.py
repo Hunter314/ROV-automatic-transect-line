@@ -3,10 +3,14 @@ import numpy as np
 import helperFunctions as hp
 import matplotlib.pyplot as plt
 cap = cv2.VideoCapture("transectLineExample.mp4")
+
+fourcc = cv2.VideoWriter_fourcc('M', 'P', 'E', 'G')
+
+out = cv2.VideoWriter('output_vid.avi', fourcc, 10, (360, 480))
+
 while cap.isOpened():
     ret, frame = cap.read()
-    fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
-    out = cv2.VideoWriter('output.avi', fourcc, 10.0, (640, 480))
+    #print(frame.shape)
     # May need to alter fps depending on video
     fps = 30
     if ret:
@@ -39,3 +43,4 @@ while cap.isOpened():
         break
 
 cap.release()
+out.release()

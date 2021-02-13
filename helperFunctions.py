@@ -106,21 +106,21 @@ def applyHoughTransform(img, edgy_img = None, showall = False, threshold = 100, 
                     # Find desired path
                 bisector = x_int_bisector(leftLine, rightLine)
                 points = pointsFromPointSlope(bisector["x_intercept"], bisector["slope"])
-                print(f"{bisector}\n")
+                #qprint(f"{bisector}\n")
                 try:
                     cv2.line(img, points[0], points[1], (255, 255, 0), 2)
                 except OverflowError:
                     print(f"First point: {points[0]}\n"
                           f"Second point: {points[1]}\n")
                 twist_info = vectorFromBigLines(img_shape=img.shape, line_left=bigLines[0], line_right=bigLines[1])
-                cv2.putText(img, text=f"Pitch: {twist_info['rotation']['pitch']}  "
-                                      f"Yaw: {twist_info['rotation']['yaw']}  "
-                                      f"Roll: {twist_info['rotation']['roll']}  ", org=(0, 60),
+                cv2.putText(img, text=f"Pitch: {twist_info['rotation']['pitch']:4.2f}  "
+                                      f"Yaw: {twist_info['rotation']['yaw']:4.2f}  "
+                                      f"Roll: {twist_info['rotation']['roll']:4.2f}  ", org=(0, 60),
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5,
                             color=(255, 255, 255), thickness=2)
-                cv2.putText(img, text=f"x: {twist_info['translation']['x']}  "
-                                      f"y: {twist_info['translation']['y']}  "
-                                      f"z: {twist_info['translation']['z']}  ", org=(0, 75),
+                cv2.putText(img, text=f"x: {twist_info['translation']['x']:4.2f}  "
+                                      f"y: {twist_info['translation']['y']:4.2f}  "
+                                      f"z: {twist_info['translation']['z']:4.2f}  ", org=(0, 75),
                             fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                             fontScale=0.5,
                             color=(255, 255, 255), thickness=2)
@@ -197,6 +197,7 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     :return: a tuple of two tuples representing 3d positional and 3d rotational vectors. These vectors describe the ideal movement of the ROV.
     """
     # First, check for rotation of two lines:
+
     pitch = 0.0
     roll = 0.0
     yaw = 0.0
@@ -205,11 +206,17 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     z = 0.0
     bisector = x_int_bisector(line_left, line_right)
     yaw = np.tan(bisector['slope'])
+
+    l = intersectionWithHorizontal(line_left['x_intercept'], line_left['slope'], horizontal_y = img_shape[0]/2)
+    m = intersectionWithHorizontal(line_right['x_intercept'], line_right['slope'], horizontal_y = img_shape[0]/2)
     # Find a line where the slope of the left line is the mirror of the slope of the right line
-
-    # First, check for distance from two lines:
-
-
+    print(f'{l} {m}')
+    x = np.average([l, m]) - 240
+    # Ideally:
+    # The difference between the blue lines and the edge is 0.25 times the difference between the blue lines
+    # 0.25 | 1 | 0.25
+    ideal_margin = img_shape[0] / 6
+    zoom = (l - m) / (ideal_margin * 4)
     return {"rotation": {"pitch": pitch, "roll": roll, "yaw": yaw}, "translation": {"x":x, "y": y, "z": z}}
 
 def x_int_bisector(line_a, line_b):
