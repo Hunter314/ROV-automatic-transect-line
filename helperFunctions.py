@@ -64,7 +64,7 @@ def boldImage(img, bold_color = 255, width = 1):
     return copy_img
 
 
-def applyHoughTransform(img, edgy_img = None, threshold = 100, debug = False):
+def applyHoughTransform(img, edgy_img = None, showall = False, threshold = 100, debug = False):
     lines = None
     if edgy_img is None:
         applyHoughTransform(img, createHueEdges(img))
@@ -84,6 +84,7 @@ def applyHoughTransform(img, edgy_img = None, threshold = 100, debug = False):
                 start, end = pointsFromRhoTheta(rho, theta)
                 if (debug == True):
                     pointSlopeFromRhoTheta(rho, theta, debug=True)
+                #if showall:
                 cv2.line(img, start, end, (0, 0, 255), 2)
 
             bigLines = bigLinesFromAllLines(lines)
@@ -102,7 +103,7 @@ def applyHoughTransform(img, edgy_img = None, threshold = 100, debug = False):
     return lines
 
 
-def bigLinesFromAllLines(lines):
+def bigLinesFromAllLines(lines, debug=False):
     si_lines = []
     if lines is not None:
         for arr in lines:
@@ -142,7 +143,7 @@ def bigLinesFromAllLines(lines):
         cluster_slopes = []
         cluster_intercepts = []
         for small_line in si_lines:
-            if abs(small_line[0][0] - big_line) < 20:
+            if abs(small_line[0][0] - big_line) < 40:
                 #add intercept
                 cluster_intercepts.append(small_line[0][0])
                 cluster_slopes.append(small_line[1])
@@ -152,6 +153,19 @@ def bigLinesFromAllLines(lines):
         big_lines.append(((big_intercept, 0), big_slope))
 
     return big_lines
+
+
+def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
+    """
+    Takes two big lines and returns a direction vector to keep ROV between them.
+    :param img_shape: shape of the original image
+    :param line_left: left line in point slope form
+    :param line_right: right line in point slope form
+    :param debug: make True if you're a True fan of print statements
+    :return: a tuple of two tuples representing 3d positional and 3d rotational vectors. These vectors describe the ideal movement of the ROV.
+    """
+    # First, check for rotation of two lines:
+    # First, check for distance from two lines:
 
 
 def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
@@ -171,6 +185,13 @@ def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
     return ((x1, y1), (x2, y2))
 
 
+def getLineColor(img, point, slope):
+    # TODO: Finish this to verify two lines on screen are blue
+    colors = []
+    if (slope >= 1):
+        for i in range(0, img.shape[0]):
+            colors.append(img[i][i * slope + point])
+
 
 def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     a = np.cos(theta)
@@ -183,13 +204,19 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     if (b != 0):
         slope = -(a / b)
     else:
+        # What I'm about to do is kind of yucky, and it's the precise reason why we use rho and theta instead of
+        # slope intercept...
+        # but slope intercept is just easier for many to work in. It's easier for me.
+        # For an image that can at most be a couple hundred pixels tall, I feel this value is large enough.
         slope = 10000
+
+
     if (debug == True):
         print(f'Initial value ({x0}, {y0}), slope {slope}')
     return ((x0, y0), slope)
 
 
-def pointsFromPointSlope(point, slope, highVal=1000):
+def pointsFromPointSlope(point, slope, highVal=100):
 
 
     return ((int(point[0] - highVal), int(point[1] - highVal * slope)), (int(point[0] + highVal), int(point[1] + highVal * slope)))

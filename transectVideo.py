@@ -21,7 +21,7 @@ while cap.isOpened():
         # phough not working
         #hboldframe = frame.copy()
 
-        hp.applyHoughTransform(hframe, None, threshold=200)
+        hp.applyHoughTransform(hframe, None, threshold=100, showall=True)
 
         cv2.imshow('Current frame', hframe)
         # cv2.imshow('vales', hp.createValueEdges(frame))
