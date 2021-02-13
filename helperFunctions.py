@@ -83,24 +83,53 @@ def applyHoughTransform(img, edgy_img = None, showall = False, threshold = 100, 
                 theta = arr[0][1]
                 start, end = pointsFromRhoTheta(rho, theta)
                 if (debug == True):
-                    pointSlopeFromRhoTheta(rho, theta, debug=True)
+                    pointSlopeFromRhoTheta(rho, theta, debug=False)
                 #if showall:
                 cv2.line(img, start, end, (0, 0, 255), 2)
 
             bigLines = bigLinesFromAllLines(lines)
-            print(f'bigLines: {bigLines}')
-            print("TEST")
+            #print(f'bigLines: {bigLines}')
+
             for bigLine in bigLines:
-                points = pointsFromPointSlope(bigLine[0], bigLine[1])
+                points = pointsFromPointSlope(bigLine["x_intercept"], bigLine["slope"])
                 cv2.line(img, points[0], points[1], (0, 255, 0), 2)
 
 
+            if (len(bigLines) == 2):
+                if (bigLines[0]["x_intercept"][0] < bigLines[1]["x_intercept"][0]):
+                    # left line is bigLines[0]
+                    leftLine = bigLines[0]
+                    rightLine = bigLines[1]
+                else:
+                    leftLine = bigLines[1]
+                    rightLine = bigLines[0]
+                    # Find desired path
+                bisector = x_int_bisector(leftLine, rightLine)
+                points = pointsFromPointSlope(bisector["x_intercept"], bisector["slope"])
+                print(f"{bisector}\n")
+                try:
+                    cv2.line(img, points[0], points[1], (255, 255, 0), 2)
+                except OverflowError:
+                    print(f"First point: {points[0]}\n"
+                          f"Second point: {points[1]}\n")
+                twist_info = vectorFromBigLines(img_shape=img.shape, line_left=bigLines[0], line_right=bigLines[1])
+                cv2.putText(img, text=f"Pitch: {twist_info['rotation']['pitch']}  "
+                                      f"Yaw: {twist_info['rotation']['yaw']}  "
+                                      f"Roll: {twist_info['rotation']['roll']}  ", org=(0, 60),
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5,
+                            color=(255, 255, 255), thickness=2)
+                cv2.putText(img, text=f"x: {twist_info['translation']['x']}  "
+                                      f"y: {twist_info['translation']['y']}  "
+                                      f"z: {twist_info['translation']['z']}  ", org=(0, 75),
+                            fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                            fontScale=0.5,
+                            color=(255, 255, 255), thickness=2)
             # Now, try to find all major lines in the image
             cv2.putText(img, text=f"Detected {len(bigLines)} lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
+
         else:
             cv2.putText(img, text=f"Detected 0 lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
-
-    return lines
+        return lines
 
 
 def bigLinesFromAllLines(lines, debug=False):
@@ -136,9 +165,11 @@ def bigLinesFromAllLines(lines, debug=False):
     #plt.plot(s, e)
     #plt.show()
     mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-    print(f"Maxima: {s[ma]}")
-    # Now select which lines are close enough to the maxima
-    print(f"There are {len(s[ma])} lines")
+    if(debug):
+        print(f"Maxima: {s[ma]}")
+        # Now select which lines are close enough to the maxima
+        print(f"There are {len(s[ma])} lines")
+
     for big_line in s[ma]:
         cluster_slopes = []
         cluster_intercepts = []
@@ -147,10 +178,11 @@ def bigLinesFromAllLines(lines, debug=False):
                 #add intercept
                 cluster_intercepts.append(small_line[0][0])
                 cluster_slopes.append(small_line[1])
-        print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
+        if (debug):
+            print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
         big_slope = np.average(cluster_slopes)
         big_intercept = np.average(cluster_intercepts)
-        big_lines.append(((big_intercept, 0), big_slope))
+        big_lines.append({"x_intercept": (big_intercept, 0), "slope" : big_slope})
 
     return big_lines
 
@@ -165,7 +197,61 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     :return: a tuple of two tuples representing 3d positional and 3d rotational vectors. These vectors describe the ideal movement of the ROV.
     """
     # First, check for rotation of two lines:
+    pitch = 0.0
+    roll = 0.0
+    yaw = 0.0
+    x = 0.0
+    y = 0.0
+    z = 0.0
+    bisector = x_int_bisector(line_left, line_right)
+    yaw = np.tan(bisector['slope'])
+    # Find a line where the slope of the left line is the mirror of the slope of the right line
+
     # First, check for distance from two lines:
+
+
+    return {"rotation": {"pitch": pitch, "roll": roll, "yaw": yaw}, "translation": {"x":x, "y": y, "z": z}}
+
+def x_int_bisector(line_a, line_b):
+    """
+    Returns a line bisecting two lines
+    :param line_a: Line in x_intercept slope form
+    :param line_b: Line in x_intercept slope form
+    :return: the equation of the line bisecting a and b with positive slope.
+    """
+    try:
+
+        m1 = line_a["slope"]
+        m2 = line_b["slope"]
+        k1 = line_a['x_intercept'][0]
+        k2 = line_b['x_intercept'][0]
+    except (KeyError):
+        print(f"Could not find bisector. Improper line format. Inputs: {line_a}\n{line_b}\n")
+        return None
+    # Oh heck, why did I need to use point slope
+    d1 = np.sqrt(m1 ** 2 + 1)
+    d2 = np.sqrt(m2 ** 2 + 1)
+    ans = []
+    if (m1 / abs(m1)) * (m2 / abs(m2)) == 1:
+        # first case
+        denom = d1 + d2
+        m = (m1 * d2 + m2 * d1) / denom
+        if not (abs(m) <= 10000):
+            m = 10000
+        y_int_times_denom = m1 * d2 * k1 + m2 * d1 * k2
+        x_int = y_int_times_denom / (m1 * d2 + m2 * d1)
+
+    else:
+        # second case
+        denom = d2 - d1
+        m = (m1 * d2 - m2 * d1) / denom
+        if not (abs(m) <= 10000):
+            m = 10000
+        y_int_times_denom = m1 * d2 * k1 - m2 * d1 * k2
+        x_int = y_int_times_denom / (m1 * d2 - m2 * d1)
+
+
+    return {"x_intercept": (x_int, 0), "slope" : m}
 
 
 def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
@@ -205,10 +291,13 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
         slope = -(a / b)
     else:
         # What I'm about to do is kind of yucky, and it's the precise reason why we use rho and theta instead of
-        # slope intercept...
-        # but slope intercept is just easier for many to work in. It's easier for me.
+        # point slope...
+        # but point slope is just easier for many to work in. It's easier for me.
         # For an image that can at most be a couple hundred pixels tall, I feel this value is large enough.
-        slope = 10000
+        slope = 100000
+        # NOTE: IF you do some kind of fancy yaw calculation based on the far-off intersection point of the two lines,
+        # This may mess it up in the case where one line is vertical and the other is not.
+        # But like, maybe not that bad. You can always make this number higher.
 
 
     if (debug == True):
@@ -216,10 +305,13 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     return ((x0, y0), slope)
 
 
-def pointsFromPointSlope(point, slope, highVal=100):
-
-
-    return ((int(point[0] - highVal), int(point[1] - highVal * slope)), (int(point[0] + highVal), int(point[1] + highVal * slope)))
+def pointsFromPointSlope(point, slope, highVal=1000):
+    if (abs(slope) <= 1):
+        return ((int(point[0] - highVal), int(point[1] - highVal * slope)),
+                (int(point[0] + highVal), int(point[1] + highVal * slope)))
+    else:
+        return ((int(point[0] - highVal / slope), int(point[1] - highVal)),
+                (int(point[0] + highVal / slope), int(point[1] + highVal)))
 
 
 def slopeIntercept(rho, theta, debug=False):
