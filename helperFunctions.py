@@ -67,7 +67,7 @@ def boldImage(img, bold_color = 255, width = 1):
 def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=False):
     lines = None
     if edgy_img is None:
-        applyHoughTransform(img, createHueEdges(img))
+        applyHoughTransform(img, createHueEdges(img), debug=debug, showall=showall)
     else:
         edges = edgy_img
         lines = cv2.HoughLines(edges, 1, np.pi / 180, threshold)
@@ -82,11 +82,13 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
                 rho = arr[0][0]
                 theta = arr[0][1]
                 start, end = pointsFromRhoTheta(rho, theta)
-                if (debug == True):
-                    pointSlopeFromRhoTheta(rho, theta, debug=False)
                 #if showall:
-                cv2.line(img, start, end, (0, 0, 255), 2)
-
+                if showall:
+                    cv2.line(img, start, end, (0, 0, 255), 2)
+                if debug:
+                    point_slope = pointSlopeFromRhoTheta(rho, theta)
+                    start, end = pointsFromPointSlope(point_slope[0], point_slope[1])
+                    cv2.line(img, start, end, (255, 0, 255), 1)
             bigLines = bigLinesFromAllLines(lines)
             #print(f'bigLines: {bigLines}')
 
@@ -133,6 +135,7 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
 
 
 def bigLinesFromAllLines(lines, debug=True):
+
     si_lines = []
     if lines is not None:
         for arr in lines:
@@ -143,6 +146,7 @@ def bigLinesFromAllLines(lines, debug=True):
     else:
         # No big lines if there are no lines!
         return None
+    print(f'Slope intercept lines: {si_lines}')
     big_lines = []
     line_clusters = []
     intercepts = []
@@ -182,8 +186,9 @@ def bigLinesFromAllLines(lines, debug=True):
             print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
         big_slope = np.average(cluster_slopes)
         big_intercept = np.average(cluster_intercepts)
-        big_lines.append({"x_intercept": (big_intercept, 0), "slope" : big_slope})
 
+        big_lines.append({"x_intercept": (big_intercept, 0), "slope" : big_slope})
+    print(f'Big lines: {big_lines}')
     return big_lines
 
 
@@ -212,7 +217,7 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     l = intersectionWithHorizontal(line_left['x_intercept'], line_left['slope'], horizontal_y = img_shape[0]/2)
     m = intersectionWithHorizontal(line_right['x_intercept'], line_right['slope'], horizontal_y = img_shape[0]/2)
     # Find a line where the slope of the left line is the mirror of the slope of the right line
-    print(f'{l} {m}')
+    print(f'l and m in VectorFromBigLines: {l} {m}')
     zoom = (m - l) / (ideal_margin * 4)
 
     x = np.average([l, m]) - 240
@@ -224,6 +229,7 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     z = 2 * np.log(zoom)
 
     return {"rotation": {"pitch": pitch, "roll": roll, "yaw": yaw}, "translation": {"x":x, "y": y, "z": z}}
+
 
 def x_int_bisector(line_a, line_b):
     """
@@ -239,7 +245,7 @@ def x_int_bisector(line_a, line_b):
         k1 = line_a['x_intercept'][0]
         k2 = line_b['x_intercept'][0]
     except (KeyError):
-        print(f"Could not find bisector. Improper line format. Inputs: {line_a}\n{line_b}\n")
+        print(f"Could not find bisector. Improper line format. \nInputs:\n{line_a}\n{line_b}\n")
         return None
     # Oh heck, why did I need to use point slope
     d1 = np.sqrt(m1 ** 2 + 1)
@@ -292,7 +298,7 @@ def getLineColor(img, point, slope):
             colors.append(img[i][i * slope + point])
 
 
-def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
+def pointSlopeFromRhoTheta(rho, theta, debug=True, highVal=1000):
     a = np.cos(theta)
     b = np.sin(theta)
     x0 = a * rho
@@ -341,11 +347,11 @@ def intersectionWithHorizontal(point, slope, horizontal_y=0):
     x0 = point[0]
     y0 = point[1]
     # a scalar k * slope will separate x0 from x1
-    k = y0 - horizontal_y
+    k = horizontal_y - y0
     # k = dy
     # slope = dy / dx
     # dx = dy / slope
-    intersection = x0 + k / slope
+    intersection = x0 - k / slope
     return intersection
 
 
@@ -358,7 +364,7 @@ def applyPHough(img, edgy_img = None, minLineLength = 100, maxLineGap = 50, debu
         # cv2.imshow("p input", edges)
         lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, minLineLength, maxLineGap)
         if debug:
-            print("Probablistic hough transform lines:\n" + str(lines) + "End.\n")
+            print("Probabilistic hough transform lines:\n" + str(lines) + "End.\n")
 
         if lines is not None:
 
