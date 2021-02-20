@@ -64,7 +64,7 @@ def boldImage(img, bold_color = 255, width = 1):
     return copy_img
 
 
-def applyHoughTransform(img, edgy_img = None, showall = False, threshold = 100, debug = False):
+def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=False):
     lines = None
     if edgy_img is None:
         applyHoughTransform(img, createHueEdges(img))
@@ -132,7 +132,7 @@ def applyHoughTransform(img, edgy_img = None, showall = False, threshold = 100, 
         return lines
 
 
-def bigLinesFromAllLines(lines, debug=False):
+def bigLinesFromAllLines(lines, debug=True):
     si_lines = []
     if lines is not None:
         for arr in lines:
@@ -150,8 +150,8 @@ def bigLinesFromAllLines(lines, debug=False):
     thetas = []
     for line in si_lines:
 
-        slopes.append(line[1])
-        intercepts.append(line[0][0])
+        slopes.append(line['slope'])
+        intercepts.append(line['x_intercept'][0])
     for lineTheta in lines:
         thetas.append(lineTheta[0][1])
     #plt.plot(intercepts, thetas, 'bo')
@@ -174,10 +174,10 @@ def bigLinesFromAllLines(lines, debug=False):
         cluster_slopes = []
         cluster_intercepts = []
         for small_line in si_lines:
-            if abs(small_line[0][0] - big_line) < 40:
+            if abs(small_line['x_intercept'][0] - big_line) < 40:
                 #add intercept
-                cluster_intercepts.append(small_line[0][0])
-                cluster_slopes.append(small_line[1])
+                cluster_intercepts.append(small_line['x_intercept'][0])
+                cluster_slopes.append(small_line['slope'])
         if (debug):
             print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
         big_slope = np.average(cluster_slopes)
@@ -333,7 +333,7 @@ def slopeIntercept(rho, theta, debug=False):
     For our purposes, the x-intercept makes more sense than the y intercept.
     """
     point, slope = pointSlopeFromRhoTheta(rho, theta)
-    return ((intersectionWithHorizontal(point, slope), 0), slope)
+    return {'x_intercept':(intersectionWithHorizontal(point, slope), 0), 'slope': slope}
 
 
 def intersectionWithHorizontal(point, slope, horizontal_y=0):

@@ -6,10 +6,12 @@ from datetime import datetime
 
 # Make this True to save the video
 # On a side note, are preprocessor macros a thing in Python?
-saving = True
+saving = False
+#saving = True
 
 now = datetime.now()
 date_time = now.strftime("%Y-%m-%d_%H:%M")
+save_path = f'output_{date_time}.avi'
 
 cap = cv2.VideoCapture("transectLineExample.mp4")
 
@@ -21,7 +23,7 @@ seconds = 0
 paused = False
 
 if saving:
-    out = cv2.VideoWriter(f'output_{date_time}.avi', fourcc, fps, (480, 360))
+    out = cv2.VideoWriter(save_path, fourcc, fps, (480, 360))
 
 while cap.isOpened():
     if not paused:
