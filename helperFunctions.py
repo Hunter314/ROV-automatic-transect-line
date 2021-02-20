@@ -207,16 +207,22 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     bisector = x_int_bisector(line_left, line_right)
     yaw = np.tan(bisector['slope'])
 
+    ideal_margin = img_shape[1] / 6
+
     l = intersectionWithHorizontal(line_left['x_intercept'], line_left['slope'], horizontal_y = img_shape[0]/2)
     m = intersectionWithHorizontal(line_right['x_intercept'], line_right['slope'], horizontal_y = img_shape[0]/2)
     # Find a line where the slope of the left line is the mirror of the slope of the right line
     print(f'{l} {m}')
+    zoom = (m - l) / (ideal_margin * 4)
+
     x = np.average([l, m]) - 240
+    x = zoom * (x / ideal_margin)
     # Ideally:
     # The difference between the blue lines and the edge is 0.25 times the difference between the blue lines
     # 0.25 | 1 | 0.25
-    ideal_margin = img_shape[0] / 6
-    zoom = (l - m) / (ideal_margin * 4)
+
+    z = 2 * np.log(zoom)
+
     return {"rotation": {"pitch": pitch, "roll": roll, "yaw": yaw}, "translation": {"x":x, "y": y, "z": z}}
 
 def x_int_bisector(line_a, line_b):
