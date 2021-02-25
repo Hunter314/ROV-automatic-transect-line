@@ -134,7 +134,7 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
         return lines
 
 
-def bigLinesFromAllLines(lines, debug=True):
+def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
 
     si_lines = []
     if lines is not None:
@@ -146,7 +146,8 @@ def bigLinesFromAllLines(lines, debug=True):
     else:
         # No big lines if there are no lines!
         return None
-    print(f'Slope intercept lines: {si_lines}')
+    if (debug):
+        print(f'Slope intercept lines: {si_lines}')
     big_lines = []
     line_clusters = []
     intercepts = []
@@ -173,8 +174,9 @@ def bigLinesFromAllLines(lines, debug=True):
         print(f"Maxima: {s[ma]}")
         # Now select which lines are close enough to the maxima
         print(f"There are {len(s[ma])} lines")
-
-    for big_line in s[ma]:
+    maxima=s[ma]
+    maxima.sort()
+    for big_line in maxima:
         cluster_slopes = []
         cluster_intercepts = []
         for small_line in si_lines:
@@ -186,8 +188,15 @@ def bigLinesFromAllLines(lines, debug=True):
             print(f'Cluster slopes: {cluster_slopes}\n Cluster Intercepts: {cluster_intercepts}')
         big_slope = np.average(cluster_slopes)
         big_intercept = np.average(cluster_intercepts)
-
-        big_lines.append({"x_intercept": (big_intercept, 0), "slope" : big_slope})
+        if (big_intercept > - outer_bound * img_width) and big_intercept < img_width * (outer_bound + 1):
+            big_lines.append({"x_intercept": (big_intercept, 0), "slope" : big_slope})
+    #if debug:
+    past_intercept = None
+    for big_line in big_lines:
+        if past_intercept is not None and abs(big_line['x_intercept'][0] - past_intercept) < 0.0001:
+            big_lines.remove(big_line)
+            print("Line removed")
+        past_intercept = big_line['x_intercept'][0]
     print(f'Big lines: {big_lines}')
     return big_lines
 
@@ -217,7 +226,8 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     l = intersectionWithHorizontal(line_left['x_intercept'], line_left['slope'], horizontal_y = img_shape[0]/2)
     m = intersectionWithHorizontal(line_right['x_intercept'], line_right['slope'], horizontal_y = img_shape[0]/2)
     # Find a line where the slope of the left line is the mirror of the slope of the right line
-    print(f'l and m in VectorFromBigLines: {l} {m}')
+    if debug:
+        print(f'l and m in VectorFromBigLines: {l} {m}')
     zoom = (m - l) / (ideal_margin * 4)
 
     x = np.average([l, m]) - 240
@@ -298,7 +308,7 @@ def getLineColor(img, point, slope):
             colors.append(img[i][i * slope + point])
 
 
-def pointSlopeFromRhoTheta(rho, theta, debug=True, highVal=1000):
+def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     a = np.cos(theta)
     b = np.sin(theta)
     x0 = a * rho
