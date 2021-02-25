@@ -351,7 +351,7 @@ def intersectionWithHorizontal(point, slope, horizontal_y=0):
     # k = dy
     # slope = dy / dx
     # dx = dy / slope
-    intersection = x0 - k / slope
+    intersection = x0 + k / slope
     return intersection
 
 
