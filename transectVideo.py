@@ -19,8 +19,11 @@ fps = 24
 fourcc = cv2.VideoWriter_fourcc('M', 'P', 'E', 'G')
 
 # Just for the purpose of seeing how many seconds into the video you are in OpenCV
+losing_frames = 0
+losses = 0
 seconds = 0
 paused = False
+
 
 if saving:
     out = cv2.VideoWriter(save_path, fourcc, fps, (480, 360))
@@ -43,7 +46,26 @@ while cap.isOpened():
             # phough not working
             #hboldframe = frame.copy()
 
-            hp.applyHoughTransform(hframe, None, threshold=100, showall=True, debug=False)
+            output = hp.applyHoughTransform(hframe, None, threshold=100, showall=True, debug=False)
+            if output is not None and len(output['big_lines']) is not 2:
+                losing_frames += 1
+                print(f"{output['big_lines']}")
+            else:
+                losing_frames = 0
+                if output is not None and len(output['big_lines']):
+                    print(f"Has 2: {output['big_lines']}")
+                else:
+                    if output is None:
+                        print("Output is None.")
+
+            if losing_frames == 24:
+                losses += 1
+
+            if losses == 2:
+                print(f"Task failed. Showing {len(output['big_lines'])} pipe(s) in frame.")
+                break
+
+            print(losing_frames)
 
             cv2.imshow('Current frame', hframe)
             # cv2.imshow('vales', hp.createValueEdges(frame))

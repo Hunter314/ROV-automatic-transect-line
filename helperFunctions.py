@@ -66,9 +66,11 @@ def boldImage(img, bold_color = 255, width = 1):
 
 def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=False):
     lines = None
+    twist_info = None
     if edgy_img is None:
-        applyHoughTransform(img, createHueEdges(img), debug=debug, showall=showall)
+        return applyHoughTransform(img, createHueEdges(img), debug=debug, showall=showall)
     else:
+        bigLines = []
         edges = edgy_img
         lines = cv2.HoughLines(edges, 1, np.pi / 180, threshold)
         # list of slope intercept lines
@@ -131,7 +133,7 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
 
         else:
             cv2.putText(img, text=f"Detected 0 lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
-        return lines
+        return {"lines": lines, "big_lines": bigLines, "twist": twist_info}
 
 
 def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
