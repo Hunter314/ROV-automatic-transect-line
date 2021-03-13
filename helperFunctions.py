@@ -4,25 +4,11 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 
-def saveTestImageAtSec(cap, sec):
-    # do this for the right index
-    cap.set(cv2.CAP_PROP_POS_MSEC, 1000 * sec)
-    ret, frame = cap.read()
-    #fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
-    #out = cv2.VideoWriter('output.avi', fourcc, 10.0, (640, 480))
-    #out.write(frame)
-    if (ret):
-        cv2.imwrite("testImage_" + str(sec) + ".jpg", frame)
-    else:
-        return False
 
-#test_cap = cv2.VideoCapture("transectLineExample.mp4")
-#saveTestImageAtSec(test_cap, 15)
-# max line gap up
-# accumulator down
-
-
-def createHueEdges(img):
+# =================
+# Image Processing:
+# =================
+def create_hue_edges(img):
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     hue = hsv_img.copy()
     hue[:, :, 1] = 255
@@ -34,7 +20,7 @@ def createHueEdges(img):
     return edges
 
 
-def createValueEdges(img):
+def create_value_edges(img):
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     hue = hsv_img.copy()
     # remove all saturation
@@ -46,7 +32,7 @@ def createValueEdges(img):
     return edges
 
 
-def boldImage(img, bold_color = 255, width = 1):
+def bold_image(img, bold_color = 255, width = 1):
     '''Extends every pixel of bold_color to the surrounding width pixels.'''
     copy_img = img.copy()
     arr_img = np.array(img)
@@ -64,11 +50,27 @@ def boldImage(img, bold_color = 255, width = 1):
     return copy_img
 
 
-def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=False):
+def save_test_image_at_sec(cap, sec):
+    # do this for the right index
+    cap.set(cv2.CAP_PROP_POS_MSEC, 1000 * sec)
+    ret, frame = cap.read()
+    #fourcc = cv2.VideoWriter_fourcc('X', 'V', 'I', 'D')
+    #out = cv2.VideoWriter('output.avi', fourcc, 10.0, (640, 480))
+    #out.write(frame)
+    if (ret):
+        cv2.imwrite("testImage_" + str(sec) + ".jpg", frame)
+    else:
+        return False
+
+
+# ======================================================
+# Task-Related Computer Vision and Clustering Functions:
+# ======================================================
+def apply_hough_transform(img, edgy_img=None, show_all=False, threshold=100, debug=False):
     lines = None
     twist_info = None
     if edgy_img is None:
-        return applyHoughTransform(img, createHueEdges(img), debug=debug, showall=showall)
+        return apply_hough_transform(img, create_hue_edges(img), debug=debug, show_all=show_all)
     else:
         bigLines = []
         edges = edgy_img
@@ -83,19 +85,19 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
                 #print(arr)
                 rho = arr[0][0]
                 theta = arr[0][1]
-                start, end = pointsFromRhoTheta(rho, theta)
+                start, end = points_from_rho_theta(rho, theta)
                 #if showall:
-                if showall:
+                if show_all:
                     cv2.line(img, start, end, (0, 0, 255), 2)
                 if debug:
-                    point_slope = pointSlopeFromRhoTheta(rho, theta)
-                    start, end = pointsFromPointSlope(point_slope[0], point_slope[1])
+                    point_slope = point_slope_from_rho_theta(rho, theta)
+                    start, end = points_from_point_slope(point_slope[0], point_slope[1])
                     cv2.line(img, start, end, (255, 0, 255), 1)
-            bigLines = bigLinesFromAllLines(lines)
+            bigLines = big_lines_from_all_lines(lines)
             #print(f'bigLines: {bigLines}')
 
             for bigLine in bigLines:
-                points = pointsFromPointSlope(bigLine["x_intercept"], bigLine["slope"])
+                points = points_from_point_slope(bigLine["x_intercept"], bigLine["slope"])
                 cv2.line(img, points[0], points[1], (0, 255, 0), 2)
 
 
@@ -109,14 +111,14 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
                     rightLine = bigLines[0]
                     # Find desired path
                 bisector = x_int_bisector(leftLine, rightLine)
-                points = pointsFromPointSlope(bisector["x_intercept"], bisector["slope"])
+                points = points_from_point_slope(bisector["x_intercept"], bisector["slope"])
                 #qprint(f"{bisector}\n")
                 try:
                     cv2.line(img, points[0], points[1], (255, 255, 0), 2)
                 except OverflowError:
                     print(f"First point: {points[0]}\n"
                           f"Second point: {points[1]}\n")
-                twist_info = vectorFromBigLines(img_shape=img.shape, line_left=bigLines[0], line_right=bigLines[1])
+                twist_info = vector_from_big_lines(img_shape=img.shape, line_left=bigLines[0], line_right=bigLines[1])
                 cv2.putText(img, text=f"Pitch: {twist_info['rotation']['pitch']:4.2f}  "
                                       f"Yaw: {twist_info['rotation']['yaw']:4.2f}  "
                                       f"Roll: {twist_info['rotation']['roll']:4.2f}  ", org=(0, 60),
@@ -129,14 +131,21 @@ def applyHoughTransform(img, edgy_img=None, showall=False, threshold=100, debug=
                             fontScale=0.5,
                             color=(255, 255, 255), thickness=2)
             # Now, try to find all major lines in the image
-            cv2.putText(img, text=f"Detected {len(bigLines)} lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
+            cv2.putText(img, text=f"Detected {len(bigLines)} lines",
+                        org=(0, 30),
+                        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+                        fontScale=1,
+                        color=(255, 255, 255),
+                        thickness=2)
 
         else:
-            cv2.putText(img, text=f"Detected 0 lines", org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1, color=(255, 255, 255), thickness=2)
+            cv2.putText(img, text=f"Detected 0 lines",
+                        org=(0, 30), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=1,
+                        color=(255, 255, 255), thickness=2)
         return {"lines": lines, "big_lines": bigLines, "twist": twist_info}
 
 
-def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
+def big_lines_from_all_lines(lines, img_width=480, outer_bound=0, debug=False):
 
     si_lines = []
     if lines is not None:
@@ -144,7 +153,7 @@ def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
             rho = arr[0][0]
             theta = arr[0][1]
             # add line to list of slope intercept lines
-            si_lines.append(slopeIntercept(rho, theta))
+            si_lines.append(slope_intercept(rho, theta))
     else:
         # No big lines if there are no lines!
         return None
@@ -172,7 +181,7 @@ def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
     #plt.plot(s, e)
     #plt.show()
     mi, ma = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-    if(debug):
+    if debug:
         print(f"Maxima: {s[ma]}")
         # Now select which lines are close enough to the maxima
         print(f"There are {len(s[ma])} lines")
@@ -199,11 +208,12 @@ def bigLinesFromAllLines(lines, img_width=480, outer_bound=0, debug=False):
             big_lines.remove(big_line)
             print("Line removed")
         past_intercept = big_line['x_intercept'][0]
-    print(f'Big lines: {big_lines}')
+    if debug:
+        print(f'Big lines: {big_lines}')
     return big_lines
 
 
-def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
+def vector_from_big_lines(img_shape, line_left, line_right, debug=False):
     """
     Takes two big lines and returns a direction vector to keep ROV between them.
     :param img_shape: shape of the original image
@@ -225,8 +235,8 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
 
     ideal_margin = img_shape[1] / 6
 
-    l = intersectionWithHorizontal(line_left['x_intercept'], line_left['slope'], horizontal_y = img_shape[0]/2)
-    m = intersectionWithHorizontal(line_right['x_intercept'], line_right['slope'], horizontal_y = img_shape[0]/2)
+    l = intersection_with_horizontal(line_left['x_intercept'], line_left['slope'], horizontal_y =img_shape[0] / 2)
+    m = intersection_with_horizontal(line_right['x_intercept'], line_right['slope'], horizontal_y =img_shape[0] / 2)
     # Find a line where the slope of the left line is the mirror of the slope of the right line
     if debug:
         print(f'l and m in VectorFromBigLines: {l} {m}')
@@ -243,66 +253,7 @@ def vectorFromBigLines(img_shape, line_left, line_right, debug=False):
     return {"rotation": {"pitch": pitch, "roll": roll, "yaw": yaw}, "translation": {"x":x, "y": y, "z": z}}
 
 
-def x_int_bisector(line_a, line_b):
-    """
-    Returns a line bisecting two lines
-    :param line_a: Line in x_intercept slope form
-    :param line_b: Line in x_intercept slope form
-    :return: the equation of the line bisecting a and b with positive slope.
-    """
-    try:
-
-        m1 = line_a["slope"]
-        m2 = line_b["slope"]
-        k1 = line_a['x_intercept'][0]
-        k2 = line_b['x_intercept'][0]
-    except (KeyError):
-        print(f"Could not find bisector. Improper line format. \nInputs:\n{line_a}\n{line_b}\n")
-        return None
-    # Oh heck, why did I need to use point slope
-    d1 = np.sqrt(m1 ** 2 + 1)
-    d2 = np.sqrt(m2 ** 2 + 1)
-    ans = []
-    if (m1 / abs(m1)) * (m2 / abs(m2)) == 1:
-        # first case
-        denom = d1 + d2
-        m = (m1 * d2 + m2 * d1) / denom
-        if not (abs(m) <= 10000):
-            m = 10000
-        y_int_times_denom = m1 * d2 * k1 + m2 * d1 * k2
-        x_int = y_int_times_denom / (m1 * d2 + m2 * d1)
-
-    else:
-        # second case
-        denom = d2 - d1
-        m = (m1 * d2 - m2 * d1) / denom
-        if not (abs(m) <= 10000):
-            m = 10000
-        y_int_times_denom = m1 * d2 * k1 - m2 * d1 * k2
-        x_int = y_int_times_denom / (m1 * d2 - m2 * d1)
-
-
-    return {"x_intercept": (x_int, 0), "slope" : m}
-
-
-def pointsFromRhoTheta(rho, theta, debug=False, highVal=1000):
-    a = np.cos(theta)
-    b = np.sin(theta)
-    x0 = a * rho
-    y0 = b * rho
-    # Slope is (-b / a)
-    # slope is (-np.tan(theta))
-    # initial value is (cos(theta)rho)
-    x1 = int(x0 + highVal * (-b))
-    y1 = int(y0 + highVal * (a))
-    x2 = int(x0 - highVal * (-b))
-    y2 = int(y0 - highVal * (a))
-    if debug:
-        print(f'Initial value ({x0}, {y0}) generates ({x1}, {y1}) to ({x2},{y2})')
-    return ((x1, y1), (x2, y2))
-
-
-def getLineColor(img, point, slope):
+def get_line_color(img, point, slope):
     # TODO: Finish this to verify two lines on screen are blue
     colors = []
     if (slope >= 1):
@@ -310,7 +261,27 @@ def getLineColor(img, point, slope):
             colors.append(img[i][i * slope + point])
 
 
-def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
+# ==========================
+# Line conversion functions:
+# ==========================
+def points_from_rho_theta(rho, theta, debug=False, high_val=1000):
+    a = np.cos(theta)
+    b = np.sin(theta)
+    x0 = a * rho
+    y0 = b * rho
+    # Slope is (-b / a)
+    # slope is (-np.tan(theta))
+    # initial value is (cos(theta)rho)
+    x1 = int(x0 + high_val * (-b))
+    y1 = int(y0 + high_val * (a))
+    x2 = int(x0 - high_val * (-b))
+    y2 = int(y0 - high_val * (a))
+    if debug:
+        print(f'Initial value ({x0}, {y0}) generates ({x1}, {y1}) to ({x2},{y2})')
+    return ((x1, y1), (x2, y2))
+
+
+def point_slope_from_rho_theta(rho, theta, debug=False, high_val=1000):
     a = np.cos(theta)
     b = np.sin(theta)
     x0 = a * rho
@@ -336,25 +307,28 @@ def pointSlopeFromRhoTheta(rho, theta, debug=False, highVal=1000):
     return ((x0, y0), slope)
 
 
-def pointsFromPointSlope(point, slope, highVal=1000):
+def points_from_point_slope(point, slope, high_val=1000):
     if (abs(slope) <= 1):
-        return ((int(point[0] - highVal), int(point[1] - highVal * slope)),
-                (int(point[0] + highVal), int(point[1] + highVal * slope)))
+        return ((int(point[0] - high_val), int(point[1] - high_val * slope)),
+                (int(point[0] + high_val), int(point[1] + high_val * slope)))
     else:
-        return ((int(point[0] - highVal / slope), int(point[1] - highVal)),
-                (int(point[0] + highVal / slope), int(point[1] + highVal)))
+        return ((int(point[0] - high_val / slope), int(point[1] - high_val)),
+                (int(point[0] + high_val / slope), int(point[1] + high_val)))
 
 
-def slopeIntercept(rho, theta, debug=False):
+def slope_intercept(rho, theta, debug=False):
     """ Returns a line in the form of a slope and its x-intercept.
 
     For our purposes, the x-intercept makes more sense than the y intercept.
     """
-    point, slope = pointSlopeFromRhoTheta(rho, theta)
-    return {'x_intercept':(intersectionWithHorizontal(point, slope), 0), 'slope': slope}
+    point, slope = point_slope_from_rho_theta(rho, theta)
+    return {'x_intercept':(intersection_with_horizontal(point, slope), 0), 'slope': slope}
 
 
-def intersectionWithHorizontal(point, slope, horizontal_y=0):
+# ====================
+# Geometric Functions:
+# ====================
+def intersection_with_horizontal(point, slope, horizontal_y=0):
     """ Returns the value x at which the given line (in point slope form) intersects with a horizontal line"""
     x0 = point[0]
     y0 = point[1]
@@ -367,25 +341,45 @@ def intersectionWithHorizontal(point, slope, horizontal_y=0):
     return intersection
 
 
-def applyPHough(img, edgy_img = None, minLineLength = 100, maxLineGap = 50, debug = False):
-    if edgy_img is None:
-        edgy_img = createHueEdges(img)
-        applyPHough(img, edgy_img, minLineLength, maxLineGap)
+def x_int_bisector(line_a, line_b):
+    """
+    Returns a line bisecting two lines
+    :param line_a: Line in x_intercept slope form
+    :param line_b: Line in x_intercept slope form
+    :return: the equation of the line bisecting a and b with positive slope.
+    """
+    try:
+
+        m1 = line_a["slope"]
+        m2 = line_b["slope"]
+        k1 = line_a['x_intercept'][0]
+        k2 = line_b['x_intercept'][0]
+    except KeyError:
+        print(f"Could not find bisector. Improper line format. \nInputs:\n{line_a}\n{line_b}\n")
+        return None
+    # Oh heck, why did I need to use point slope
+    d1 = np.sqrt(m1 ** 2 + 1)
+    d2 = np.sqrt(m2 ** 2 + 1)
+    ans = []
+    if (m1 / abs(m1)) * (m2 / abs(m2)) == 1:
+        # first case
+        denom = d1 + d2
+        m = (m1 * d2 + m2 * d1) / denom
+        if not (abs(m) <= 10000):
+            m = 10000
+        y_int_times_denom = m1 * d2 * k1 + m2 * d1 * k2
+        x_int = y_int_times_denom / (m1 * d2 + m2 * d1)
+
     else:
-        edges = edgy_img
-        # cv2.imshow("p input", edges)
-        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 50, minLineLength, maxLineGap)
-        if debug:
-            print("Probabilistic hough transform lines:\n" + str(lines) + "End.\n")
+        # second case
+        denom = d2 - d1
+        m = (m1 * d2 - m2 * d1) / denom
+        if not (abs(m) <= 10000):
+            m = 10000
+        y_int_times_denom = m1 * d2 * k1 - m2 * d1 * k2
+        x_int = y_int_times_denom / (m1 * d2 - m2 * d1)
 
-        if lines is not None:
+    return {"x_intercept": (x_int, 0), "slope" : m}
 
-            for arr in lines:
-                x1 = arr[0][0]
-                y1 = arr[0][1]
-                x2 = arr[0][2]
-                y2 = arr[0][3]
-                cv2.line(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        else:
-            print("Lines is none")
+
 

@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 
 img = cv2.imread("testImage_15.jpg")
 cv2.imshow("Test Image", img)
-img_edges = hp.createHueEdges(img)
-img_edges_bold = cv2.imshow("Bold", hp.boldImage(img_edges, width=2))
+img_edges = hp.create_hue_edges(img)
+img_edges_bold = cv2.imshow("Bold", hp.bold_image(img_edges, width=2))
 #hp.boldImage(img)
 img_phough = img.copy()
 hp.applyPHough(img_phough, edgy_img = img_edges_bold, debug = True)
 cv2.imshow("Phough", img_phough)
 img_hough = img.copy()
-lines = hp.applyHoughTransform(img_hough, edgy_img = img_edges, debug = True)
+lines = hp.apply_hough_transform(img_hough, edgy_img = img_edges, debug = True)
 cv2.imshow("hough", img_hough)
 if lines is not None:
     print(lines.shape)

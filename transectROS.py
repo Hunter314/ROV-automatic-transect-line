@@ -1,11 +1,11 @@
+import rospy
+import enum
 import cv2
 import numpy as np
 import helperFunctions as hp
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-# Make this True to save the video
-# On a side note, are preprocessor macros a thing in Python?
 saving = False
 # saving = True
 debug = False
@@ -72,10 +72,10 @@ while cap.isOpened():
 
             cv2.imshow('Current frame', hframe)
             # cv2.imshow('vales', hp.createValueEdges(frame))
-            #hp.applyPHough(phframe, None, minLineLength=50, maxLineGap=40)
-            #hp.applyHoughTransform(hframe, hp.boldImage(hp.createHueEdges(frame)), threshold=200)
-            #cv2.imshow('Current frame probablistic', phframe)
-            #cv2.imshow('Current frame hough with bold', hboldframe)
+            # hp.applyPHough(phframe, None, minLineLength=50, maxLineGap=40)
+            # hp.applyHoughTransform(hframe, hp.boldImage(hp.createHueEdges(frame)), threshold=200)
+            # cv2.imshow('Current frame probablistic', phframe)
+            # cv2.imshow('Current frame hough with bold', hboldframe)
             # Hough transform test
             if saving:
                 out.write(hframe)
