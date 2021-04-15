@@ -3,8 +3,8 @@ import numpy as np
 import helperFunctions as hp
 from datetime import datetime
 
-cam_feed_url = "http://192.168.1.3:8090/cam0.mjpg"
-
+#cam_feed_url = "http://192.168.1.3:8090/cam0.mjpg"
+cam_feed_url = ""
 def test_video(in_func, params, cam_feed):
     """
     :param in_func: Function to be called on each frame of camera feed
@@ -22,7 +22,7 @@ def test_video(in_func, params, cam_feed):
     save_path = f'output_{date_time}.avi'
 
     # cap = cv2.VideoCapture("transectLineExample.mp4")
-    cap = cv2.VideoCapture("http://192.168.1.3:8090/cam0.mjpg")
+    cap = cv2.VideoCapture("transectLineExample.mp4")
     fps = 24
     fourcc = cv2.VideoWriter_fourcc('M', 'P', 'E', 'G')
 
@@ -37,7 +37,6 @@ def test_video(in_func, params, cam_feed):
         out = cv2.VideoWriter(save_path, fourcc, fps, (480, 360))
 
     while cap.isOpened():
-
         if not paused:
             ret, frame = cap.read()
             #print(frame.shape)
@@ -97,4 +96,5 @@ def test_video(in_func, params, cam_feed):
 
 # Apply the hough transform
 # None, threshold=100, show_all=True, debug=False
-test_video(hp.apply_hough_transform, [None, 100, True, False], cam_feed_url)
+if __name__ == "__main__":
+    test_video(hp.apply_hough_transform, [None, 100, True, False], cam_feed_url)
